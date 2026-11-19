@@ -1,167 +1,352 @@
-import { chromium } from 'playwright';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 
-const BASE_URL = 'https://oferty.praca.gov.pl/portal/lista-ofert';
 const API_BASE = 'https://oferty.praca.gov.pl/portal-api/v3';
+const OUTPUT_PATH = path.resolve('docs/oferty.json');
+
+// Limit można zmieniać w .github/workflows/scrape.yml (domyślnie pobiera wszystkie z powiatu do 500)
+const MAX_OFFERS = Number(process.env.MAX_OFFERS || 500);
+const CONCURRENCY = 5;
+
+const HEADERS = {
+  'Content-Type': 'application/json',
+  Accept: 'application/json',
+  'Accept-Language': 'pl-PL,pl;q=0.9',
+  'User-Agent':
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
+};
+
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-async function main() {
-  console.log('[Diag3] Start ekstrakcji schematu API ePraca...');
+function clean(val) {
+  if (val === null || val === undefined) return '';
+  return String(val).replace(/\s+/g, ' ').trim();
+}
 
-  const browser = await chromium.launch({
-    headless: true,
-    args: ['--disable-blink-features=AutomationControlled']
+function joinValues(val) {
+  if (!val) return '';
+  if (typeof val === 'string' || typeof val === 'number') return clean(val);
+  if (Array.isArray(val)) {
+    return val
+      .map((item) => {
+        if (typeof item === 'string' || typeof item === 'number') return clean(item);
+        if (item && typeof item === 'object') {
+          return clean(
+            item.nazwa ||
+              item.poziom ||
+              item.typ ||
+              item.opis ||
+              item.wartosc ||
+              item.etykieta ||
+              item.zawod ||
+              ''
+          );
+        }
+        return '';
+      })
+      .filter(Boolean)
+      .join(', ');
+  }
+  if (typeof val === 'object') {
+    return clean(val.nazwa || val.poziom || val.opis || val.wartosc || val.etykieta || '');
+  }
+  return '';
+}
+
+async function fetchJson(url, options = {}) {
+  const res = await fetch(url, {
+    ...options,
+    headers: { ...HEADERS, ...(options.headers || {}) }
   });
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status} dla ${url}`);
+  }
+  return res.json();
+}
 
-  const context = await browser.newContext({
-    locale: 'pl-PL',
-    timezoneId: 'Europe/Warsaw',
-    viewport: { width: 1366, height: 900 },
-    userAgent:
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
-  });
-
-  const page = await context.newPage();
-
-  const jsBundles = [];
-  const apiLog = [];
-
-  page.on('response', async (res) => {
-    try {
-      const url = res.url();
-      const ct = res.headers()['content-type'] || '';
-
-      if (url.includes('oferty.praca.gov.pl/portal/') && (url.endsWith('.js') || ct.includes('javascript'))) {
-        const text = await res.text();
-        jsBundles.push({ url, text });
-      }
-
-      if (url.includes('portal-api')) {
-        const req = res.request();
-        let respText = '';
-        try {
-          respText = await res.text();
-        } catch {}
-        apiLog.push({
-          method: req.method(),
-          status: res.status(),
-          url,
-          postData: req.postData() || '',
-          respText
-        });
-      }
-    } catch {}
-  });
-
+/**
+ * Pobiera ze słownika ePraca dokładne ID województwa podlaskiego oraz powiatu białostockiego.
+ */
+async function resolvePowiatBialostockiId() {
   try {
-    await page.goto(BASE_URL, { waitUntil: 'domcontentloaded', timeout: 45000 });
-    await page
-      .waitForFunction(() => (document.body?.innerText || '').trim().length > 200, { timeout: 25000 })
-      .catch(() => {});
-    await delay(2500);
+    const wojResp = await fetchJson(`${API_BASE}/slownik/wojewodztwo`, { method: 'GET' });
+    const wojList = Array.isArray(wojResp) ? wojResp : wojResp?.payload || [];
+    const podlaskie = wojList.find((w) => /podlask/i.test(JSON.stringify(w)));
+    const wojId = podlaskie?.id ?? podlaskie?.kod ?? podlaskie?.wartosc ?? '20';
+    console.log(`[Scraper] Słownik woj. podlaskie ID: ${wojId}`);
 
-    // 1. Wypisz pełny obiekt 1. oferty z listy wyszukiwania
-    const searchCall = apiLog.find((c) => c.url.includes('/oferta/wyszukiwanie') && c.status === 200);
-    let firstOfferId = null;
-    if (searchCall) {
-      try {
-        const parsed = JSON.parse(searchCall.respText);
-        const first = parsed?.payload?.ofertyPracyPage?.content?.[0];
-        if (first) {
-          firstOfferId = first.id;
-          console.log('[Diag3] === PEŁNA 1. OFERTA Z LISTY ===');
-          console.log(JSON.stringify(first, null, 2));
-        }
-      } catch (e) {
-        console.log('[Diag3] Błąd parsowania wyszukiwania:', e.message);
-      }
+    const powResp = await fetchJson(
+      `${API_BASE}/slownik/wojewodztwo/${encodeURIComponent(String(wojId))}/powiat`,
+      { method: 'GET' }
+    );
+    const powList = Array.isArray(powResp) ? powResp : powResp?.payload || [];
+
+    // Szukamy powiatu białostockiego (ziemskiego), a nie m. Białystok
+    const bialostocki =
+      powList.find((p) => {
+        const txt = JSON.stringify(p).toLowerCase();
+        return txt.includes('białostocki') && !txt.includes('m. białystok') && !txt.includes('miasto białystok');
+      }) ||
+      powList.find((p) => /białostocki/i.test(JSON.stringify(p)));
+
+    if (bialostocki) {
+      const powiatId = String(bialostocki.id ?? bialostocki.kod ?? bialostocki.wartosc ?? '2002');
+      console.log(`[Scraper] Wykryto ID powiatu białostockiego ze słownika: ${powiatId} (${JSON.stringify(bialostocki)})`);
+      return { wojId: String(wojId), powiatId };
     }
+  } catch (err) {
+    console.warn(`[Scraper] Nie udało się odczytać słownika powiatów (${err.message}), używam domyślnego TERYT 2002.`);
+  }
+  return { wojId: '20', powiatId: '2002' };
+}
 
-    // 2. Przeszukaj pobrane pliki JS pod kątem dokładnych pól wyszukiwania i endpointów /v3/
-    console.log('[Diag3] Przeskanowano plików JS:', jsBundles.length);
-    const endpoints = new Set();
-    const kodJezykaSnippets = [];
-    const powiatSnippets = [];
+/**
+ * Wyciąga wykształcenie i zawód z pola tekstowego wymagania (fallback, gdy brak w strukturze obiektu).
+ */
+function extractFromWymaganiaText(text, label) {
+  if (!text) return '';
+  const rx = new RegExp(`(?:^|\\n)\\s*${label}\\s*[-:]\\s*([^\\n]+)`, 'i');
+  const m = String(text).match(rx);
+  return m && m[1] ? clean(m[1]) : '';
+}
 
-    for (const bundle of jsBundles) {
-      const t = bundle.text;
+function mapOffer(listItem, detail) {
+  const dp = detail?.danePodstawowe || {};
+  const dpoz = detail?.danePozostale || {};
+  const prac = detail?.pracodawca || {};
+  const war = detail?.warunki || detail?.warunkiPracyIPlacy || {};
+  const wym = detail?.wymagania || {};
 
-      const epMatches = t.match(/v3\/[a-zA-Z0-9_/${}-]+/g) || [];
-      epMatches.forEach((m) => endpoints.add(m));
+  // Numer oferty i numer StPr
+  const numerRaw = clean(dp.numer);
+  const numerEures = clean(dp.numerWEures);
+  const idOferty = clean(dp.id || listItem.id);
 
-      let idx = 0;
-      while ((idx = t.indexOf('kodJezyka', idx)) !== -1) {
-        kodJezykaSnippets.push(t.slice(Math.max(0, idx - 250), idx + 450).replace(/\s+/g, ' '));
-        idx += 9;
-        if (kodJezykaSnippets.length >= 6) break;
-      }
+  let numerStpr = 'Brak danych';
+  if (/StPr\//i.test(numerRaw)) {
+    numerStpr = numerRaw;
+  } else if (/StPr\//i.test(numerEures)) {
+    const m = numerEures.match(/StPr\/[^\s,;]+/i);
+    numerStpr = m ? m[0] : numerEures;
+  }
 
-      let pIdx = 0;
-      while ((pIdx = t.indexOf('powiat', pIdx)) !== -1) {
-        const snip = t.slice(Math.max(0, pIdx - 100), pIdx + 180).replace(/\s+/g, ' ');
-        if (/teryt|wojewodz|gmin|miejscow|lokalizacj|kod|wyszuk/i.test(snip)) {
-          powiatSnippets.push(snip);
-        }
-        pIdx += 6;
-        if (powiatSnippets.length >= 10) break;
-      }
-    }
+  // Numer oferty: jeśli główne pole "numer" ma OfPr/..., użyj go; w przeciwnym razie numer / idOfertyPl / id
+  const numerOferty =
+    clean(dp.idOfertyPl) ||
+    (numerRaw && !/StPr\//i.test(numerRaw) ? numerRaw : '') ||
+    numerEures ||
+    numerRaw ||
+    idOferty ||
+    'Brak danych';
 
-    console.log('[Diag3] === ENDPOINTY v3 ZNALEZIONE W JS ===');
-    Array.from(endpoints).sort().forEach((e) => console.log('  *', e));
+  // Urząd zgłaszający / PUP Białystok
+  const nazwaUrzedu =
+    clean(prac.nazwaUrzeduPracy) ||
+    clean(listItem.placowkaOpis) ||
+    clean(listItem.dodanePrzez);
 
-    console.log('[Diag3] === KONTEKST "kodJezyka" W JS (pola filtra wyszukiwania) ===');
-    kodJezykaSnippets.forEach((s, i) => console.log(`  [${i + 1}] ${s}`));
+  const czyPupBialystok =
+    /powiatowy urząd pracy w białymstoku|pup\s+w\s+białymstoku|pup\s+białystok/i.test(nazwaUrzedu);
 
-    console.log('[Diag3] === KONTEKST "powiat" W JS ===');
-    powiatSnippets.forEach((s, i) => console.log(`  [${i + 1}] ${s}`));
+  // Lokalizacja pracy
+  const lokalizacja =
+    clean(war.miejscePracy) ||
+    clean(war.adresMiejscaPracy) ||
+    clean(listItem.miejscePracy) ||
+    clean(prac.adres) ||
+    'powiat białostocki';
 
-    // 3. Kliknij pierwszą ofertę na liście, aby zobaczyć URL szczegółów i odpowiedź API szczegółów
-    const beforeClickCount = apiLog.length;
-    console.log('[Diag3] Próba otwarcia szczegółów 1. oferty...');
+  // Numer telefonu (ze szczegółów pracodawcy / kontaktu lub z listy)
+  const telefon =
+    clean(prac.nrTelefonuPracodawca) ||
+    clean(prac.nrTelefonu) ||
+    clean(listItem.telefon) ||
+    'Brak danych';
 
-    // Szukaj linku lub karty oferty na stronie
-    const clicked = await page.evaluate(() => {
-      const a = Array.from(document.querySelectorAll('a[href]')).find((el) =>
-        /szczegoly|oferta/i.test(el.getAttribute('href') || '') && (el.textContent || '').trim().length > 3
-      );
-      if (a) {
-        a.click();
-        return 'LINK: ' + a.getAttribute('href');
-      }
-      const card = document.querySelector('app-oferta-card, .oferta, [class*="offer"], mat-card, h2, h3');
-      if (card) {
-        card.click();
-        return 'CARD: ' + card.tagName + ' ' + (card.textContent || '').trim().slice(0, 60);
-      }
-      return 'NONE';
-    });
-    console.log('[Diag3] Kliknięto element:', clicked);
-    await delay(4000);
-    console.log('[Diag3] URL po kliknięciu:', page.url());
+  // Wynagrodzenie (pierwsza linia z opisem kwoty, jeśli pełny opis ma wiele akapitów)
+  let wynagrodzenie =
+    clean(war.wynagrodzenieBrutto) ||
+    clean(war.wynagrodzenie) ||
+    clean(listItem.wynagrodzenie);
+  if (wynagrodzenie.length > 140) {
+    const firstLine = clean(String(war.wynagrodzenieBrutto || listItem.wynagrodzenie || '').split('\n')[0]);
+    wynagrodzenie = firstLine.length > 140 ? firstLine.slice(0, 137) + '...' : firstLine;
+  }
 
-    // Jeśli URL się nie zmienił, a mamy firstOfferId, sprawdź linki na stronie zawierające firstOfferId
-    if (firstOfferId && !page.url().includes(firstOfferId)) {
-      const matchingLinks = await page.evaluate((id) => {
-        return Array.from(document.querySelectorAll('a[href]'))
-          .map((a) => a.getAttribute('href'))
-          .filter((h) => h && (h.includes(id) || h.includes('szczegol') || h.includes('oferta')));
-      }, firstOfferId);
-      console.log('[Diag3] Linki z ID/szczegółami na stronie:', JSON.stringify(matchingLinks.slice(0, 10)));
-    }
+  // Wymiar etatu
+  let wymiarEtatu =
+    clean(war.wymiarEtatu) ||
+    clean(war.wymiarZatrudnienia) ||
+    clean(listItem.wymiarZatrud);
+  if (/^\d+(?:[.,]\d+)?$/.test(wymiarEtatu)) {
+    wymiarEtatu = `${wymiarEtatu} etat`;
+  }
 
-    const newCalls = apiLog.slice(beforeClickCount);
-    console.log('[Diag3] === NOWE WYWOŁANIA API PO KLIKNIĘCIU OFERTY (' + newCalls.length + ') ===');
-    newCalls.forEach((c, i) => {
-      console.log(`  #${i + 1} [${c.method} ${c.status}] ${c.url}`);
-      if (c.postData) console.log('     POST:', c.postData.slice(0, 300));
-      console.log('     RESP:', c.respText.slice(0, 1800));
-    });
-  } finally {
-    await browser.close();
+  // Zmianowość
+  const zmianowosc =
+    clean(war.zmianowosc) ||
+    clean(war.systemPracy) ||
+    clean(war.rodzajZmianowosci) ||
+    clean(listItem.zmianowosc) ||
+    'Brak danych';
+
+  // Zawód
+  const zawod =
+    joinValues(war.zawod) ||
+    joinValues(dp.zawod) ||
+    joinValues(wym.zawod) ||
+    joinValues(wym.zawody) ||
+    extractFromWymaganiaText(listItem.wymagania, 'zawód') ||
+    'Brak danych';
+
+  // Wykształcenie
+  const wyksztalcenie =
+    joinValues(wym.wyksztalcenie) ||
+    joinValues(wym.wyksztalcenia) ||
+    joinValues(wym.poziomWyksztalcenia) ||
+    joinValues(wym.wymaganiaKonieczne?.wyksztalcenia) ||
+    extractFromWymaganiaText(listItem.wymagania, 'wykształcenie') ||
+    'Brak danych';
+
+  // Daty
+  const dataPublikacji =
+    clean(dpoz.dataUdostepnieniaOferty) ||
+    clean(dpoz.dataDodania) ||
+    clean(listItem.dataDodaniaCbop) ||
+    clean(listItem.dataWaznOd) ||
+    'Brak danych';
+
+  const dataWaznosci =
+    clean(dpoz.dataWaznosci) ||
+    clean(listItem.dataWaznDo) ||
+    'Brak danych';
+
+  return {
+    numerOferty,
+    numerStpr,
+    dodanePrzezPupBialystok: czyPupBialystok,
+    urzadZglaszajacy: nazwaUrzedu || 'Brak danych',
+    lokalizacja,
+    stanowisko: clean(dp.stanowisko || listItem.stanowisko) || 'Brak danych',
+    pracodawca: clean(prac.nazwa || listItem.pracodawca) || 'Brak danych',
+    rodzajUmowy: clean(war.rodzajUmowy || listItem.rodzajUmowy) || 'Brak danych',
+    numerTelefonu: telefon,
+    wynagrodzenie: wynagrodzenie || 'Brak danych',
+    wymiarEtatu: wymiarEtatu || 'Brak danych',
+    zmianowosc,
+    zawod,
+    wyksztalcenie,
+    dataPublikacji,
+    dataWaznosci,
+    url: idOferty
+      ? `https://oferty.praca.gov.pl/portal/lista-ofert/szczegoly-oferty/${encodeURIComponent(idOferty)}`
+      : 'https://oferty.praca.gov.pl/portal/lista-ofert'
+  };
+}
+
+async function fetchOfferDetails(id) {
+  const url = `${API_BASE}/oferta/szczegoly/${encodeURIComponent(id)}?alreadyVisited=false&hashJap=`;
+  const json = await fetchJson(url, { method: 'GET' });
+  return json?.payload || null;
+}
+
+async function readExistingOffersCount() {
+  try {
+    const raw = await fs.readFile(OUTPUT_PATH, 'utf-8');
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed.offers) ? parsed.offers.length : 0;
+  } catch {
+    return 0;
   }
 }
 
+async function main() {
+  console.log(`[Scraper] Start pobierania z ePraca API v3 (powiat białostocki, limit: ${MAX_OFFERS})...`);
+
+  const { powiatId } = await resolvePowiatBialostockiId();
+  const searchBody = {
+    kodJezyka: 'PL',
+    powiatyId: [powiatId]
+  };
+
+  const listItems = [];
+  const pageSize = 50;
+  let pageNum = 0;
+  let totalPages = 1;
+
+  while (pageNum < totalPages && listItems.length < MAX_OFFERS) {
+    const url = `${API_BASE}/oferta/wyszukiwanie?page=${pageNum}&size=${pageSize}&sort=dataDodaniaCbop,desc`;
+    const resp = await fetchJson(url, {
+      method: 'POST',
+      body: JSON.stringify(searchBody)
+    });
+
+    const pageObj = resp?.payload?.ofertyPracyPage;
+    if (!pageObj || !Array.isArray(pageObj.content)) {
+      throw new Error('Nieoczekiwana struktura odpowiedzi wyszukiwania API.');
+    }
+
+    totalPages = pageObj.totalPages ?? 1;
+    for (const item of pageObj.content) {
+      if (listItems.length < MAX_OFFERS) listItems.push(item);
+    }
+
+    console.log(
+      `[Scraper] Strona ${pageNum + 1}/${totalPages}: pobrano ${pageObj.content.length} (łącznie: ${listItems.length} z ${pageObj.totalElements})`
+    );
+    pageNum++;
+    await delay(150);
+  }
+
+  if (listItems.length === 0) {
+    const prev = await readExistingOffersCount();
+    console.warn(`[Scraper] API zwróciło 0 ofert dla powiatyId=[${powiatId}] (poprzednio: ${prev}).`);
+    return;
+  }
+
+  // Pobieranie szczegółów równolegle w paczkach po CONCURRENCY (szybko i bezpiecznie dla serwera)
+  const finalOffers = new Array(listItems.length);
+  let loggedDetailSample = false;
+
+  for (let i = 0; i < listItems.length; i += CONCURRENCY) {
+    const batch = listItems.slice(i, i + CONCURRENCY);
+    await Promise.all(
+      batch.map(async (item, offset) => {
+        const idx = i + offset;
+        let detail = null;
+        try {
+          detail = await fetchOfferDetails(item.id);
+          if (!loggedDetailSample && detail) {
+            loggedDetailSample = true;
+            console.log('[Diag] Sekcje szczegółów oferty #1:', Object.keys(detail).join(', '));
+            if (detail.warunki) console.log('[Diag] Klucze warunki:', Object.keys(detail.warunki).join(', '));
+            if (detail.wymagania) console.log('[Diag] Klucze wymagania:', Object.keys(detail.wymagania).join(', '));
+          }
+        } catch (err) {
+          console.warn(`[Scraper] Nie pobrano szczegółów dla ${item.id}: ${err.message}`);
+        }
+        finalOffers[idx] = mapOffer(item, detail);
+      })
+    );
+    await delay(180);
+  }
+
+  console.log('[Diag] Przykładowa zapisana oferta #1:', JSON.stringify(finalOffers[0], null, 2));
+
+  const payload = {
+    updatedAt: new Date().toISOString(),
+    region: 'powiat białostocki',
+    powiatId,
+    total: finalOffers.length,
+    offers: finalOffers
+  };
+
+  await fs.mkdir(path.dirname(OUTPUT_PATH), { recursive: true });
+  await fs.writeFile(OUTPUT_PATH, JSON.stringify(payload, null, 2), 'utf-8');
+  console.log(`[Scraper] GOTOWE! Zapisano ${finalOffers.length} ofert do ${OUTPUT_PATH}.`);
+}
+
 main().catch((err) => {
-  console.error('[Diag3] Błąd krytyczny:', err);
+  console.error('[Scraper] Błąd krytyczny:', err);
   process.exit(1);
 });
