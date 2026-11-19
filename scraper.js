@@ -1,13 +1,10 @@
 import { chromium } from 'playwright';
-import fs from 'node:fs/promises';
-import path from 'node:path';
 
 const BASE_URL = 'https://oferty.praca.gov.pl/portal/lista-ofert';
-const OUTPUT_PATH = path.resolve('docs/oferty.json');
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function main() {
-  console.log('[Scraper] Uruchamianie Chromium z diagnostyką API/DOM...');
+  console.log('[Diag2] Start analizy ładowania Angulara i endpointów portal-api...');
 
   const browser = await chromium.launch({
     headless: true,
@@ -18,9 +15,6 @@ async function main() {
     locale: 'pl-PL',
     timezoneId: 'Europe/Warsaw',
     viewport: { width: 1366, height: 900 },
-    extraHTTPHeaders: {
-      'Accept-Language': 'pl-PL,pl;q=0.9,en-US;q=0.8,en;q=0.7'
-    },
     userAgent:
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
   });
@@ -31,84 +25,98 @@ async function main() {
 
   const page = await context.newPage();
 
-  // Przechwytywanie zapytań JSON (wewnętrznego API ePraca)
+  const errors = [];
   const apiCalls = [];
+  const discoveredEndpoints = new Set();
+
+  page.on('pageerror', (err) => errors.push(`PAGEERROR: ${err.message}`));
+  page.on('console', (msg) => {
+    if (msg.type() === 'error' || msg.type() === 'warning') {
+      errors.push(`CONSOLE[${msg.type()}]: ${msg.text().slice(0, 220)}`);
+    }
+  });
+  page.on('requestfailed', (req) => {
+    errors.push(`REQ_FAIL: ${req.url()} -> ${req.failure()?.errorText}`);
+  });
+
   page.on('response', async (res) => {
     try {
       const url = res.url();
       const ct = res.headers()['content-type'] || '';
-      if (ct.includes('json') && url.includes('praca.gov.pl')) {
+
+      // 1. Przechwyć wszystkie wywołania portal-api
+      if (url.includes('portal-api')) {
         const req = res.request();
-        let preview = '';
+        let bodyPreview = '';
         try {
-          const txt = await res.text();
-          preview = txt.slice(0, 350).replace(/\s+/g, ' ');
+          bodyPreview = (await res.text()).slice(0, 900).replace(/\s+/g, ' ');
         } catch {}
         apiCalls.push({
           method: req.method(),
           status: res.status(),
           url,
-          postData: (req.postData() || '').slice(0, 250),
-          preview
+          postData: (req.postData() || '').slice(0, 500),
+          bodyPreview
         });
+      }
+
+      // 2. Zeskanuj pliki JS aplikacji pod kątem ścieżek API ofert
+      if (url.includes('oferty.praca.gov.pl/portal/') && (url.endsWith('.js') || ct.includes('javascript'))) {
+        const js = await res.text();
+        const matches = js.match(/["'`](\/v\d+\/[a-zA-Z0-9/_-]*oferta[a-zA-Z0-9/_-]*|\/[a-zA-Z0-9/_-]*wyszukiw[a-zA-Z0-9/_-]*|\/[a-zA-Z0-9/_-]*teryt[a-zA-Z0-9/_-]*)["'`]/gi);
+        if (matches) {
+          matches.forEach((m) => discoveredEndpoints.add(m.replace(/["'`]/g, '')));
+        }
       }
     } catch {}
   });
 
   try {
-    const response = await page.goto(BASE_URL, {
-      waitUntil: 'domcontentloaded',
-      timeout: 45000
-    });
+    await page.goto(BASE_URL, { waitUntil: 'domcontentloaded', timeout: 45000 });
 
-    console.log(`[Diag] HTTP status: ${response?.status()} | Final URL: ${page.url()}`);
+    const start = Date.now();
+    const rendered = await page
+      .waitForFunction(() => (document.body?.innerText || '').trim().length > 80, { timeout: 25000 })
+      .then(() => true)
+      .catch(() => false);
 
-    // Poczekaj aż aplikacja SPA się załaduje i wykona zapytania sieciowe
-    await page.waitForLoadState('networkidle', { timeout: 20000 }).catch(() => {});
-    await delay(5000);
+    console.log(`[Diag2] Wyrenderowano treść: ${rendered} (po ${((Date.now() - start) / 1000).toFixed(1)} s)`);
+    if (rendered) await delay(3000);
 
-    const info = await page.evaluate(() => {
+    const domInfo = await page.evaluate(() => {
       const clean = (s) => (s || '').replace(/\s+/g, ' ').trim();
-      const links = Array.from(document.querySelectorAll('a[href]'))
-        .map((a) => ({ text: clean(a.textContent).slice(0, 60), href: a.getAttribute('href') }))
-        .filter((l) => l.href && !l.href.startsWith('#') && !l.href.startsWith('mailto:'));
-
-      const inputs = Array.from(document.querySelectorAll('input, select')).map((el) => ({
-        tag: el.tagName,
-        type: el.getAttribute('type'),
-        id: el.id,
-        name: el.getAttribute('name'),
-        placeholder: el.getAttribute('placeholder'),
-        ariaLabel: el.getAttribute('aria-label')
-      }));
-
       return {
-        title: document.title,
+        url: location.href,
         textLength: (document.body?.innerText || '').length,
         textPreview: clean(document.body?.innerText).slice(0, 500),
-        totalLinks: links.length,
-        sampleLinks: links.slice(0, 15),
-        inputs: inputs.slice(0, 12)
+        htmlPreview: (document.body?.innerHTML || '').slice(0, 400).replace(/\s+/g, ' ')
       };
     });
 
-    console.log(`[Diag] Tytuł strony: "${info.title}" | Długość tekstu: ${info.textLength}`);
-    console.log(`[Diag] Fragment tekstu: ${info.textPreview}`);
-    console.log(`[Diag] Pola formularza (${info.inputs.length}):`, JSON.stringify(info.inputs, null, 2));
-    console.log(`[Diag] Przykładowe linki (${info.totalLinks} łącznie):`, JSON.stringify(info.sampleLinks, null, 2));
+    console.log(`[Diag2] Final URL: ${domInfo.url} | Długość tekstu: ${domInfo.textLength}`);
+    console.log(`[Diag2] Tekst: ${domInfo.textPreview}`);
+    if (domInfo.textLength === 0) {
+      console.log(`[Diag2] HTML body: ${domInfo.htmlPreview}`);
+    }
 
-    console.log(`[Diag] Przechwycone zapytania API JSON (${apiCalls.length}):`);
-    apiCalls.slice(0, 15).forEach((c, idx) => {
-      console.log(`  #${idx + 1} [${c.method} ${c.status}] ${c.url}`);
-      if (c.postData) console.log(`     Body: ${c.postData}`);
-      if (c.preview) console.log(`     Resp: ${c.preview}`);
+    console.log(`[Diag2] Błędy/Ostrzeżenia (${errors.length}):`);
+    errors.slice(0, 15).forEach((e) => console.log('  -', e));
+
+    console.log(`[Diag2] Wywołania portal-api (${apiCalls.length}):`);
+    apiCalls.slice(0, 15).forEach((c, i) => {
+      console.log(`  #${i + 1} [${c.method} ${c.status}] ${c.url}`);
+      if (c.postData) console.log(`     POST: ${c.postData}`);
+      if (c.bodyPreview) console.log(`     RESP: ${c.bodyPreview}`);
     });
+
+    console.log(`[Diag2] Ścieżki API znalezione w kodzie JS (${discoveredEndpoints.size}):`);
+    Array.from(discoveredEndpoints).slice(0, 40).forEach((ep) => console.log('  *', ep));
   } finally {
     await browser.close();
   }
 }
 
 main().catch((err) => {
-  console.error('[Scraper] Błąd krytyczny:', err);
+  console.error('[Diag2] Błąd krytyczny:', err);
   process.exit(1);
 });
