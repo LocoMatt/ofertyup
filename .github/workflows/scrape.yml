@@ -1,0 +1,50 @@
+name: Aktualizacja ofert (Powiat Białostocki)
+
+on:
+  schedule:
+    - cron: '0 */3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: scrape-cbop-bialostocki
+  cancel-in-progress: false
+
+jobs:
+  scrape-and-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Pobranie repozytorium
+        uses: actions/checkout@v4
+
+      - name: Konfiguracja Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Instalacja zależności npm
+        run: npm install
+
+      - name: Instalacja przeglądarki Chromium dla Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Scrapowanie ofert z ePraca
+        env:
+          MAX_OFFERS: '100'
+        run: npm run scrape
+
+      - name: Zapisanie zaktualizowanego pliku docs/oferty.json
+        run: |
+          if git diff --quiet docs/oferty.json; then
+            echo "Brak zmian w ofertach."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add docs/oferty.json
+            git commit -m "chore: aktualizacja ofert ($(date -u +'%Y-%m-%d %H:%M UTC'))"
+            git push
+          fi
