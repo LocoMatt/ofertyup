@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Oferty pracy – Powiat Białostocki</title>
+  <style>
+    :root {
+      --bg: #f1f5f9;
+      --surface: #ffffff;
+      --text: #0f172a;
+      --muted: #64748b;
+      --border: #e2e8f0;
+      --primary: #1d4ed8;
+      --primary-hover: #1e40af;
+      --yes-bg: #dcfce7;
+      --yes-text: #166534;
+      --no-bg: #f1f5f9;
+      --no-text: #475569;
+      --salary-bg: #fef9c3;
+      --salary-text: #854d0e;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 1.25rem;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+    }
+
+    .container {
+      max-width: 1280px;
+      margin: 0 auto;
+    }
+
+    .top-bar {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.9rem;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 1.3rem;
+    }
+
+    .meta {
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    .actions {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    button {
+      cursor: pointer;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.5rem 0.9rem;
+      font-weight: 600;
+      font-size: 0.88rem;
+      background: var(--surface);
+      color: var(--text);
+      transition: background 0.15s;
+    }
+
+    button:hover:not(:disabled) {
+      background: #f8fafc;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .filters {
+      display: grid;
+      grid-template-columns: 2.2fr 1fr 1fr 1fr auto;
+      gap: 0.65rem;
+      align-items: center;
+    }
+
+    @media (max-width: 980px) {
+      .filters { grid-template-columns: 1fr 1fr; }
+      .filters input[type="search"] { grid-column: 1 / -1; }
+    }
+
+    @media (max-width: 560px) {
+      .filters { grid-template-columns: 1fr; }
+    }
+
+    input[type="search"], select {
+      width: 100%;
+      padding: 0.58rem 0.85rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.94rem;
+      background: #fff;
+      color: var(--text);
+    }
+
+    input[type="search"]:focus, select:focus {
+      outline: 2px solid rgba(29, 78, 216, 0.2);
+      border-color: var(--primary);
+    }
+
+    .checkbox-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      font-size: 0.88rem;
+      font-weight: 500;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+
+    main {
+      padding: 1.25rem 1.25rem 3rem;
+    }
+
+    .status-bar {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+      font-size: 0.88rem;
+      color: var(--muted);
+    }
+
+    .offers-list {
+      display: grid;
+      gap: 1rem;
+    }
+
+    .offer-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.15rem 1.25rem;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    }
+
+    .offer-header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 0.75rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.75rem;
+      margin-bottom: 0.9rem;
+    }
+
+    .offer-title {
+      margin: 0 0 0.2rem;
+      font-size: 1.12rem;
+    }
+
+    .offer-title a {
+      color: var(--primary);
+      text-decoration: none;
+    }
+
+    .offer-title a:hover {
+      text-decoration: underline;
+    }
+
+    .offer-employer {
+      font-weight: 600;
+      font-size: 0.94rem;
+    }
+
+    .badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 0.24rem 0.65rem;
+      border-radius: 999px;
+      font-size: 0.76rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .badge-yes { background: var(--yes-bg); color: var(--yes-text); }
+    .badge-no { background: var(--no-bg); color: var(--no-text); }
+    .badge-salary { background: var(--salary-bg); color: var(--salary-text); }
+
+    .details-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(225px, 1fr));
+      gap: 0.7rem 1.1rem;
+      font-size: 0.88rem;
+    }
+
+    .detail-item {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .detail-label {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+    }
+
+    .detail-value {
+      font-weight: 500;
+      word-break: break-word;
+    }
+
+    .detail-value a {
+      color: var(--primary);
+      text-decoration: none;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 3rem 1.5rem;
+      background: var(--surface);
+      border: 1px dashed #cbd5e1;
+      border-radius: 12px;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container">
+      <div class="top-bar">
+        <div>
+          <h1>Oferty pracy – Powiat Białostocki</h1>
+          <div class="meta" id="lastUpdated">Ładowanie aktualnych ofert...</div>
+        </div>
+        <div class="actions">
+          <button id="reloadBtn" type="button">Odśwież listę</button>
+          <button id="exportCsvBtn" type="button" disabled>Pobierz CSV</button>
+        </div>
+      </div>
+
+      <div class="filters">
+        <input
+          type="search"
+          id="searchInput"
+          placeholder="Szukaj stanowiska, firmy, miejscowości, zawodu, nr oferty / StPr, telefonu..."
+          autocomplete="off"
+        />
+        <select id="contractFilter">
+          <option value="">Wszystkie rodzaje umów</option>
+        </select>
+        <select id="educationFilter">
+          <option value="">Wszystkie wykształcenia</option>
+        </select>
+        <select id="sortSelect">
+          <option value="default">Sortowanie domyślne</option>
+          <option value="pubDesc">Najnowsza publikacja</option>
+          <option value="expAsc">Najbliższa data ważności</option>
+          <option value="titleAsc">Stanowisko (A–Z)</option>
+        </select>
+        <label class="checkbox-label">
+          <input type="checkbox" id="pupOnlyCheckbox" />
+          Tylko PUP Białystok
+        </label>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="status-bar">
+      <span id="resultsCount">Ładowanie...</span>
+      <span>Źródło: oferty.praca.gov.pl (aktualizacja automatyczna co 3 godz.)</span>
+    </div>
+    <div id="offersContainer" class="offers-list"></div>
+  </main>
+
+  <script>
+    (() => {
+      const els = {
+        searchInput: document.getElementById('searchInput'),
+        contractFilter: document.getElementById('contractFilter'),
+        educationFilter: document.getElementById('educationFilter'),
+        sortSelect: document.getElementById('sortSelect'),
+        pupOnlyCheckbox: document.getElementById('pupOnlyCheckbox'),
+        reloadBtn: document.getElementById('reloadBtn'),
+        exportCsvBtn: document.getElementById('exportCsvBtn'),
+        offersContainer: document.getElementById('offersContainer'),
+        resultsCount: document.getElementById('resultsCount'),
+        lastUpdated: document.getElementById('lastUpdated')
+      };
+
+      let allOffers = [];
+      let filteredOffers = [];
+
+      function escapeHtml(value) {
+        return String(value ?? '')
+          .replaceAll('&', '&amp;')
+          .replaceAll('<', '&lt;')
+          .replaceAll('>', '&gt;')
+          .replaceAll('"', '&quot;')
+          .replaceAll("'", '&#39;');
+      }
+
+      function formatPhoneLink(phone) {
+        if (!phone || phone === 'Brak danych') return 'Brak danych';
+        const digits = phone.replace(/[^\d+]/g, '');
+        if (digits.length < 7) return escapeHtml(phone);
+        return `<a href="tel:${escapeHtml(digits)}">${escapeHtml(phone)}</a>`;
+      }
+
+      function parsePolishDate(dateStr) {
+        if (!dateStr) return 0;
+        const dmy = String(dateStr).match(/^(\d{2})\.(\d{2})\.(\d{4})/);
+        if (dmy) return new Date(`${dmy[3]}-${dmy[2]}-${dmy[1]}`).getTime() || 0;
+        return Date.parse(dateStr) || 0;
+      }
+
+      function populateSelect(selectEl, values, defaultLabel) {
+        const current = selectEl.value;
+        const unique = [...new Set(values.filter((v) => v && v !== 'Brak danych'))].sort((a, b) =>
+          a.localeCompare(b, 'pl')
+        );
+        selectEl.innerHTML = `<option value="">${defaultLabel}</option>`;
+        unique.forEach((v) => {
+          const opt = document.createElement('option');
+          opt.value = v;
+          opt.textContent = v;
+          selectEl.appendChild(opt);
+        });
+        if (unique.includes(current)) selectEl.value = current;
+      }
+
+      function applyFilters() {
+        const query = els.searchInput.value.trim().toLowerCase();
+        const contract = els.contractFilter.value;
+        const education = els.educationFilter.value;
+        const pupOnly = els.pupOnlyCheckbox.checked;
+        const sortMode = els.sortSelect.value;
+
+        filteredOffers = allOffers.filter((o) => {
+          if (pupOnly && !o.dodanePrzezPupBialystok) return false;
+          if (contract && o.rodzajUmowy !== contract) return false;
+          if (education && o.wyksztalcenie !== education) return false;
+
+          if (!query) return true;
+
+          const searchable = [
+            o.numerOferty,
+            o.numerStpr,
+            o.dodanePrzezPupBialystok ? 'pup białystok tak' : 'nie',
+            o.urzadZglaszajacy,
+            o.lokalizacja,
+            o.stanowisko,
+            o.pracodawca,
+            o.rodzajUmowy,
+            o.numerTelefonu,
+            o.wynagrodzenie,
+            o.wymiarEtatu,
+            o.zmianowosc,
+            o.zawod,
+            o.wyksztalcenie,
+            o.dataPublikacji,
+            o.dataWaznosci
+          ]
+            .join(' ')
+            .toLowerCase();
+
+          return query.split(/\s+/).every((word) => searchable.includes(word));
+        });
+
+        if (sortMode === 'pubDesc') {
+          filteredOffers.sort((a, b) => parsePolishDate(b.dataPublikacji) - parsePolishDate(a.dataPublikacji));
+        } else if (sortMode === 'expAsc') {
+          filteredOffers.sort(
+            (a, b) => (parsePolishDate(a.dataWaznosci) || Infinity) - (parsePolishDate(b.dataWaznosci) || Infinity)
+          );
+        } else if (sortMode === 'titleAsc') {
+          filteredOffers.sort((a, b) => String(a.stanowisko).localeCompare(String(b.stanowisko), 'pl'));
+        }
+
+        renderOffers();
+      }
+
+      function renderOffers() {
+        els.resultsCount.textContent = `Wyświetlono: ${filteredOffers.length} z ${allOffers.length} ofert`;
+        els.exportCsvBtn.disabled = filteredOffers.length === 0;
+
+        if (filteredOffers.length === 0) {
+          els.offersContainer.innerHTML =
+            allOffers.length === 0
+              ? `<div class="empty-state">Trwa oczekiwanie na pierwsze automatyczne pobranie ofert z ePraca. Odśwież stronę za kilka minut.</div>`
+              : `<div class="empty-state">Brak ofert pasujących do wpisanych kryteriów wyszukiwania.</div>`;
+          return;
+        }
+
+        els.offersContainer.innerHTML = filteredOffers
+          .map(
+            (o) => `
+            <article class="offer-card">
+              <div class="offer-header">
+                <div>
+                  <h2 class="offer-title">
+                    <a href="${escapeHtml(o.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(o.stanowisko)}</a>
+                  </h2>
+                  <div class="offer-employer">${escapeHtml(o.pracodawca)}</div>
+                </div>
+                <div class="badges">
+                  <span class="badge badge-salary">${escapeHtml(o.wynagrodzenie)}</span>
+                  <span class="badge ${o.dodanePrzezPupBialystok ? 'badge-yes' : 'badge-no'}">
+                    PUP Białystok: ${o.dodanePrzezPupBialystok ? 'TAK' : 'NIE'}
+                  </span>
+                </div>
+              </div>
+
+              <div class="details-grid">
+                <div class="detail-item"><span class="detail-label">Numer oferty</span><span class="detail-value">${escapeHtml(o.numerOferty)}</span></div>
+                <div class="detail-item"><span class="detail-label">Numer StPr</span><span class="detail-value">${escapeHtml(o.numerStpr)}</span></div>
+                <div class="detail-item"><span class="detail-label">Dodane przez</span><span class="detail-value">${escapeHtml(o.urzadZglaszajacy)}</span></div>
+                <div class="detail-item"><span class="detail-label">Lokalizacja pracy</span><span class="detail-value">${escapeHtml(o.lokalizacja)}</span></div>
+                <div class="detail-item"><span class="detail-label">Rodzaj umowy</span><span class="detail-value">${escapeHtml(o.rodzajUmowy)}</span></div>
+                <div class="detail-item"><span class="detail-label">Numer telefonu</span><span class="detail-value">${formatPhoneLink(o.numerTelefonu)}</span></div>
+                <div class="detail-item"><span class="detail-label">Wynagrodzenie</span><span class="detail-value">${escapeHtml(o.wynagrodzenie)}</span></div>
+                <div class="detail-item"><span class="detail-label">Wymiar etatu</span><span class="detail-value">${escapeHtml(o.wymiarEtatu)}</span></div>
+                <div class="detail-item"><span class="detail-label">Zmianowość</span><span class="detail-value">${escapeHtml(o.zmianowosc)}</span></div>
+                <div class="detail-item"><span class="detail-label">Zawód</span><span class="detail-value">${escapeHtml(o.zawod)}</span></div>
+                <div class="detail-item"><span class="detail-label">Wykształcenie</span><span class="detail-value">${escapeHtml(o.wyksztalcenie)}</span></div>
+                <div class="detail-item"><span class="detail-label">Data publikacji</span><span class="detail-value">${escapeHtml(o.dataPublikacji)}</span></div>
+                <div class="detail-item"><span class="detail-label">Data ważności</span><span class="detail-value">${escapeHtml(o.dataWaznosci)}</span></div>
+              </div>
+            </article>
+          `
+          )
+          .join('');
+      }
+
+      function exportCsv() {
+        if (!filteredOffers.length) return;
+        const headers = [
+          'Numer oferty', 'Numer StPr', 'PUP Białystok', 'Urząd zgłaszający', 'Lokalizacja pracy',
+          'Stanowisko', 'Pracodawca', 'Rodzaj umowy', 'Numer telefonu', 'Wynagrodzenie',
+          'Wymiar etatu', 'Zmianowość', 'Zawód', 'Wykształcenie', 'Data publikacji', 'Data ważności', 'Link'
+        ];
+        const cell = (v) => `"${String(v ?? '').replaceAll('"', '""')}"`;
+        const rows = filteredOffers.map((o) =>
+          [
+            o.numerOferty, o.numerStpr, o.dodanePrzezPupBialystok ? 'TAK' : 'NIE', o.urzadZglaszajacy,
+            o.lokalizacja, o.stanowisko, o.pracodawca, o.rodzajUmowy, o.numerTelefonu, o.wynagrodzenie,
+            o.wymiarEtatu, o.zmianowosc, o.zawod, o.wyksztalcenie, o.dataPublikacji, o.dataWaznosci, o.url
+          ]
+            .map(cell)
+            .join(';')
+        );
+        const blob = new Blob(['\uFEFF' + [headers.join(';'), ...rows].join('\n')], {
+          type: 'text/csv;charset=utf-8;'
+        });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `oferty-powiat-bialostocki-${new Date().toISOString().slice(0, 10)}.csv`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+      }
+
+      async function loadOffers() {
+        els.reloadBtn.disabled = true;
+        try {
+          const res = await fetch(`./oferty.json?t=${Date.now()}`);
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data = await res.json();
+
+          allOffers = Array.isArray(data.offers) ? data.offers : [];
+          els.lastUpdated.textContent = data.updatedAt
+            ? `Ostatnia aktualizacja: ${new Date(data.updatedAt).toLocaleString('pl-PL')}`
+            : 'Oczekiwanie na pierwszą aktualizację automatyczną';
+
+          populateSelect(els.contractFilter, allOffers.map((o) => o.rodzajUmowy), 'Wszystkie rodzaje umów');
+          populateSelect(els.educationFilter, allOffers.map((o) => o.wyksztalcenie), 'Wszystkie wykształcenia');
+          applyFilters();
+        } catch (err) {
+          els.lastUpdated.textContent = 'Nie udało się pobrać listy ofert.';
+          els.offersContainer.innerHTML = `<div class="empty-state">Błąd ładowania danych (${escapeHtml(err.message)}). Spróbuj odświeżyć stronę.</div>`;
+        } finally {
+          els.reloadBtn.disabled = false;
+        }
+      }
+
+      let searchTimer;
+      els.searchInput.addEventListener('input', () => {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(applyFilters, 120);
+      });
+      els.contractFilter.addEventListener('change', applyFilters);
+      els.educationFilter.addEventListener('change', applyFilters);
+      els.sortSelect.addEventListener('change', applyFilters);
+      els.pupOnlyCheckbox.addEventListener('change', applyFilters);
+      els.reloadBtn.addEventListener('click', loadOffers);
+      els.exportCsvBtn.addEventListener('click', exportCsv);
+
+      loadOffers();
+    })();
+  </script>
+</body>
+</html>
