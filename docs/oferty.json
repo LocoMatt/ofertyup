@@ -1,9 +1,28 @@
 {
-  "updatedAt": "2026-11-23T01:24:07.714Z",
+  "updatedAt": "2026-11-23T11:44:58.979Z",
   "region": "powiat białostocki",
   "powiatId": "2002",
   "total": 100,
   "offers": [
+    {
+      "numerOferty": "1420@StPr/26/10108",
+      "numerStpr": "StPr/26/10108",
+      "dodanePrzezPupBialystok": false,
+      "urzadZglaszajacy": "Urząd Pracy Miasta Stołecznego Warszawy",
+      "lokalizacja": "Cała Polska",
+      "stanowisko": "Instalator systemów GPS K/M",
+      "pracodawca": "Cartrack Polska Spółka z o. o.",
+      "rodzajUmowy": "Umowa zlecenie / Umowa o świadczenie usług",
+      "numerTelefonu": "451 059 778",
+      "wynagrodzenie": "od 5 250 PLN",
+      "wymiarEtatu": "nie dotyczy",
+      "zmianowosc": "jedna zmiana",
+      "zawod": "monter elektroniki samochodowej",
+      "wyksztalcenie": "zasadnicze zawodowe, kierunek: mechanik, elektromechanik, instalator",
+      "dataPublikacji": "20.11.2026",
+      "dataWaznosci": "23.11.2026",
+      "url": "https://oferty.praca.gov.pl/portal/lista-ofert/szczegoly-oferty/091a40a66404b0f47e337a07b528fa3e"
+    },
     {
       "numerOferty": "1649@StPr/26/0240",
       "numerStpr": "StPr/26/0240",
@@ -442,8 +461,8 @@
       "url": "https://oferty.praca.gov.pl/portal/lista-ofert/szczegoly-oferty/46d9a9134ec4121ca88b177bc51af026"
     },
     {
-      "numerOferty": "f36b5ef9d68bdda1a2f2b9bd7fcff467",
-      "numerStpr": "Brak danych",
+      "numerOferty": "1807@StPr/26/0520",
+      "numerStpr": "StPr/26/0520",
       "dodanePrzezPupBialystok": false,
       "urzadZglaszajacy": "Powiatowy Urząd Pracy w Krasnymstawie",
       "lokalizacja": "Cała Polska",
@@ -453,8 +472,8 @@
       "numerTelefonu": "730394825",
       "wynagrodzenie": "od 5 000 do 10 000 PLN",
       "wymiarEtatu": "1 etat",
-      "zmianowosc": "Brak danych",
-      "zawod": "Mechanik silników spalinowych",
+      "zmianowosc": "nie dotyczy",
+      "zawod": "prowadzący maszyny do kolejowych robót budowlanych",
       "wyksztalcenie": "średnie zawodowe",
       "dataPublikacji": "18.11.2026",
       "dataWaznosci": "16.02.2027",
@@ -1278,25 +1297,6 @@
       "url": "https://oferty.praca.gov.pl/portal/lista-ofert/szczegoly-oferty/754285e2ff6ef5fcffcaf704acf937e0"
     },
     {
-      "numerOferty": "70bb75e7db89677ef1fce3738e482423",
-      "numerStpr": "Brak danych",
-      "dodanePrzezPupBialystok": false,
-      "urzadZglaszajacy": "Powiatowy Urząd Pracy w Skierniewicach",
-      "lokalizacja": "Cała Polska",
-      "stanowisko": "NAUCZYCIEL WYCHOWANIA PRZEDSZKOLNEGO K/M",
-      "pracodawca": "Przedszkole nr 1 w Skierniewicach",
-      "rodzajUmowy": "Umowa o pracę w zastępstwie",
-      "numerTelefonu": "46 833 26 77",
-      "wynagrodzenie": "od 5 308 PLN",
-      "wymiarEtatu": "1 etat",
-      "zmianowosc": "Brak danych",
-      "zawod": "Nauczyciel przedszkola",
-      "wyksztalcenie": "wyższe (w tym licencjat)",
-      "dataPublikacji": "12.11.2026",
-      "dataWaznosci": "23.11.2026",
-      "url": "https://oferty.praca.gov.pl/portal/lista-ofert/szczegoly-oferty/70bb75e7db89677ef1fce3738e482423"
-    },
-    {
       "numerOferty": "fcf40f1cda0ed61b8487ec8f275b97ba",
       "numerStpr": "Brak danych",
       "dodanePrzezPupBialystok": true,
@@ -1559,7 +1559,7 @@
       "zawod": "Elektryk*",
       "wyksztalcenie": "zasadnicze zawodowe, kierunek: Elektryk lub Elektromonter",
       "dataPublikacji": "09.11.2026",
-      "dataWaznosci": "23.11.2026",
+      "dataWaznosci": "07.12.2026",
       "url": "https://oferty.praca.gov.pl/portal/lista-ofert/szczegoly-oferty/2679e75e9b42c74591675d78b0abc585"
     },
     {
@@ -1578,7 +1578,7 @@
       "zawod": "Automatyk*",
       "wyksztalcenie": "zasadnicze zawodowe",
       "dataPublikacji": "09.11.2026",
-      "dataWaznosci": "23.11.2026",
+      "dataWaznosci": "07.12.2026",
       "url": "https://oferty.praca.gov.pl/portal/lista-ofert/szczegoly-oferty/cdf2b537cfd879e701fe17dc67edea5e"
     },
     {
@@ -1766,7 +1766,7 @@
       "wymiarEtatu": "1 etat",
       "zmianowosc": "Brak danych",
       "zawod": "Robotnik budowlany",
-      "wyksztalcenie": "średnie ogólnokształcące",
+      "wyksztalcenie": "podstawowe",
       "dataPublikacji": "04.11.2026",
       "dataWaznosci": "18.12.2026",
       "url": "https://oferty.praca.gov.pl/portal/lista-ofert/szczegoly-oferty/98d2830519e21ef843e051a3e433eaa5"
