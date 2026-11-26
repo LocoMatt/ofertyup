@@ -1,9 +1,28 @@
 {
-  "updatedAt": "2026-11-26T11:52:10.244Z",
+  "updatedAt": "2026-11-26T20:53:56.265Z",
   "region": "powiat białostocki",
   "powiatId": "2002",
   "total": 100,
   "offers": [
+    {
+      "numerOferty": "1645@StPr/26/0318",
+      "numerStpr": "StPr/26/0318",
+      "dodanePrzezPupBialystok": false,
+      "urzadZglaszajacy": "Powiatowy Urząd Pracy w Górze",
+      "lokalizacja": "Cała Polska",
+      "stanowisko": "Pomocnik dekarza",
+      "pracodawca": "DACHY&ELEWACJE IGOR PIOTROWSKI",
+      "rodzajUmowy": "Umowa o pracę na okres próbny",
+      "numerTelefonu": "786627490",
+      "wynagrodzenie": "od 32,30 do 40,00 PLN",
+      "wymiarEtatu": "1 etat",
+      "zmianowosc": "jedna zmiana",
+      "zawod": "dekarz*",
+      "wyksztalcenie": "podstawowe",
+      "dataPublikacji": "26.11.2026",
+      "dataWaznosci": "31.12.2026",
+      "url": "https://oferty.praca.gov.pl/portal/lista-ofert/szczegoly-oferty/5de994abe805ef1b1a287116b9a81f9f"
+    },
     {
       "numerOferty": "1800@StPr/26/0917",
       "numerStpr": "StPr/26/0917",
@@ -423,19 +442,19 @@
       "url": "https://oferty.praca.gov.pl/portal/lista-ofert/szczegoly-oferty/fe8f27a4a97f06d678014068818b99cf"
     },
     {
-      "numerOferty": "1863@StPr/26/2251",
-      "numerStpr": "StPr/26/2251",
+      "numerOferty": "0f0724b1d646652f8d2717b716b6f267",
+      "numerStpr": "Brak danych",
       "dodanePrzezPupBialystok": true,
       "urzadZglaszajacy": "Powiatowy Urząd Pracy w Białymstoku",
-      "lokalizacja": "ul. Podpułkownika Nilskiego-Łapińskiego 4, 18-100 Łapy, powiat: białostocki, woj: podlaskie",
+      "lokalizacja": "Łapy, podlaskie",
       "stanowisko": "kasjer/sprzedawca (k/m)",
       "pracodawca": "\"DINO POLSKA\" SPÓŁKA AKCYJNA",
       "rodzajUmowy": "Umowa o pracę na okres próbny",
       "numerTelefonu": "785351696",
-      "wynagrodzenie": "od 4 900 PLN",
+      "wynagrodzenie": "od 4 900 PLN + premia zmiany 5.30-14.15, 14.00-22.45 (osoby z orzeczeniem czas pracy krótszy)",
       "wymiarEtatu": "1 etat",
-      "zmianowosc": "dwie zmiany",
-      "zawod": "sprzedawca w branży spożywczej",
+      "zmianowosc": "Brak danych",
+      "zawod": "Sprzedawca w branży spożywczej",
       "wyksztalcenie": "podstawowe",
       "dataPublikacji": "24.11.2026",
       "dataWaznosci": "23.12.2026",
@@ -588,7 +607,7 @@
       "wymiarEtatu": "1 etat",
       "zmianowosc": "Brak danych",
       "zawod": "Pozostali specjaliści do spraw rynku nieruchomości",
-      "wyksztalcenie": "wyższe (w tym licencjat)",
+      "wyksztalcenie": "średnie zawodowe",
       "dataPublikacji": "24.11.2026",
       "dataWaznosci": "23.12.2026",
       "url": "https://oferty.praca.gov.pl/portal/lista-ofert/szczegoly-oferty/0e740519b91b20cf50248e3df2fca8e3"
@@ -1884,25 +1903,6 @@
       "dataPublikacji": "10.11.2026",
       "dataWaznosci": "10.12.2026",
       "url": "https://oferty.praca.gov.pl/portal/lista-ofert/szczegoly-oferty/9ac5fcc48e6668d9e2ecb2b4ddf0469c"
-    },
-    {
-      "numerOferty": "7da0cfe12676660dc95595f19798aec6",
-      "numerStpr": "Brak danych",
-      "dodanePrzezPupBialystok": true,
-      "urzadZglaszajacy": "Powiatowy Urząd Pracy w Białymstoku",
-      "lokalizacja": "Bielsk Podlaski, podlaskie",
-      "stanowisko": "Szwaczka maszynowa (K/M)",
-      "pracodawca": "IZOLINE SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ",
-      "rodzajUmowy": "Umowa zlecenie / Umowa o świadczenie usług",
-      "numerTelefonu": "509967531",
-      "wynagrodzenie": "od 4 950 PLN",
-      "wymiarEtatu": "nie dotyczy",
-      "zmianowosc": "Brak danych",
-      "zawod": "Szwaczka maszynowa",
-      "wyksztalcenie": "brak lub niepełne podstawowe",
-      "dataPublikacji": "10.11.2026",
-      "dataWaznosci": "10.12.2026",
-      "url": "https://oferty.praca.gov.pl/portal/lista-ofert/szczegoly-oferty/7da0cfe12676660dc95595f19798aec6"
     }
   ]
 }
